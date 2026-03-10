@@ -12,7 +12,9 @@ namespace Sistema_Locação_Filmes.Models
         public int ClienteId { get; set; }
         public int FilmeId { get; set; }
         public DateTime DataLocacao { get; set; }
-        public DateTime DataDevolucao { get; set; }
-        
+        public DateTime? DataDevolucao { get; set; }
+
+        public string Status { get; set; }
+
     }
 }

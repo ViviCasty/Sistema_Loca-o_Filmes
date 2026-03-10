@@ -4,6 +4,7 @@ using System;
 using System.ComponentModel;
 using System.Reflection.Metadata;
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 
 namespace Sistema_Locação_Filmes.Services
 {
@@ -152,28 +153,28 @@ namespace Sistema_Locação_Filmes.Services
                 Console.WriteLine("0 - Sair");
                 int opcao = Convert.ToInt32(Console.ReadLine());
 
-                //switch (opcao)
-                //{
-                //    case 1:
-                //        Console.WriteLine("Adicionando Locação...");
-                //        AdicionarLocação();
-                //        break;
-                //    case 2:
-                //        Console.WriteLine("Devolução...");
-                //        Devolucao();
-                //        break;
-                //    case 3:
-                //        Console.WriteLine("Listando Locações...");
-                //        ListarLocacoes();
-                //        break;
-                //    case 0:
-                //        Console.WriteLine("Voltando ao menu principal...");
-                //        return;
-                //    default:
-                //        Console.WriteLine("Opção inválida. Tente novamente.");
-                //        break;
+                switch (opcao)
+                {
+                    case 1:
+                        Console.WriteLine("Adicionando Locação...");
+                        AdicionarLocacao();
+                        break;
+                    case 2:
+                        Console.WriteLine("Devolução...");
+                        Devolucao();
+                        break;
+                    case 3:
+                        Console.WriteLine("Listando Locações...");
+                        ListarLocacoes();
+                        break;
+                    case 0:
+                        Console.WriteLine("Voltando ao menu principal...");
+                        return;
+                    default:
+                        Console.WriteLine("Opção inválida. Tente novamente.");
+                        break;
 
-                //}
+                }
             }
         }
 
@@ -273,17 +274,29 @@ namespace Sistema_Locação_Filmes.Services
             Console.Write("Digite o CPF do cliente: ");
             string cpf = Console.ReadLine();
 
-            var cliente = new Clientes()
+            string cpf_validado = Valida_CPF(cpf);
+
+            if (cpf_validado != null)
             {
-                Id = idCliente + 1,
-                Nome = nome,
-                Cpf = cpf,
-                Idade = idade
-            };
+                var cliente = new Clientes()
+                {
+                    Id = idCliente + 1,
+                    Nome = nome,
+                    Cpf = cpf_validado,
+                    Idade = idade
+                };
 
-            clientes.Add(cliente);
+                clientes.Add(cliente);
 
-            Console.WriteLine("Cliente adicionado!");
+                Console.WriteLine("Cliente adicionado!");
+
+            }
+            else
+            {
+                Console.WriteLine("Cliente NÃO foi adicionado pois o CPF é inválido!");
+            }
+
+            
 
 
         }
@@ -333,10 +346,19 @@ namespace Sistema_Locação_Filmes.Services
                 Console.Write("Digite o novo CPF do cliente: ");
 
                 string cpf = Console.ReadLine();
+                string cpf_validado = Valida_CPF(cpf);
 
-                cliente.Nome = nome;
-                cliente.Idade = idade;
-                cliente.Cpf = cpf;
+                if (cpf_validado != null)
+                {
+                    cliente.Nome = nome;
+                    cliente.Idade = idade;
+                    cliente.Cpf = cpf_validado;
+                }
+
+                else
+                {
+                    Console.WriteLine("O cliente não foi editado pois o cpf não é valido! ");
+                }
 
 
             }
@@ -354,13 +376,144 @@ namespace Sistema_Locação_Filmes.Services
                 Console.WriteLine($"ID: {cliente.Id} | Nome: {cliente.Nome} | Idade: {cliente.Idade} | CPF: {cliente.Cpf}");
             }
         }
+
+        private void AdicionarLocacao()
+
+        {
+            // só pode adicionar se houver pelo menos um cliente e um filme cadastrados
+            Console.WriteLine();
+            Console.Write("Digite o Id do cliente: ");
+            int idcliente = Convert.ToInt32(Console.ReadLine());
+
+            Console.Write("Digite o Id do filme: ");
+            int idfilme = Convert.ToInt32(Console.ReadLine());
+
+            Console.Write("Digite a data da locação (dd/mm/yyyy) : ");
+            string data = Console.ReadLine();
+
+            var filme = filmes.FirstOrDefault(f => f.Id == idfilme);
+            var cliente = clientes.FirstOrDefault(c => c.Id == idcliente);
+
+            var validacao_idade = ClassificacaoIndicativa(cliente, filme);
+
+            if (validacao_idade == null)
+            {
+                var locacao = new Locacao()
+                {
+
+                    Id = idLocacao + 1,
+                    ClienteId = idcliente,
+                    FilmeId = idfilme,
+                    DataLocacao = Convert.ToDateTime(data),
+                    Status = "Em Aberto"
+                };
+
+
+
+                filme.Disponivel = false;
+
+                locacoes.Add(locacao);
+            }
+
+            else
+            {
+                Console.WriteLine(validacao_idade);
+            }
+
+
+
+        }
+
+        private void Devolucao()
+        {
+            Console.WriteLine();
+            Console.Write("Digite o Id da Locação: ");
+            int IdLocacao = Convert.ToInt32(Console.ReadLine());
+
+
+            var locacao = locacoes.FirstOrDefault(l => l.Id == IdLocacao);
+
+            if (locacao != null)
+            {
+                Console.WriteLine();
+
+                Console.Write("Digite a data da Devolução (dd/mm/yyyy): ");
+                string data = Console.ReadLine();
+
+                locacao.DataDevolucao = Convert.ToDateTime(data);
+
+                locacao.Status = "Devolvido";
+
+                var filme = filmes.FirstOrDefault(f => f.Id == locacao.FilmeId);
+
+                filme.Disponivel = true;
+            }
+
+            else
+            {
+                Console.WriteLine("Locação não encontrada!");
+            }
+
+        }
+
+        private void ListarLocacoes()
+        {
+            Console.WriteLine();
+
+            foreach (var locacao in locacoes)
+            {
+                var filme = filmes.FirstOrDefault(f => f.Id == locacao.FilmeId);
+                var cliente = clientes.FirstOrDefault(c => c.Id == locacao.ClienteId);
+                Console.WriteLine($"ID: {locacao.Id} | Cliente: {cliente.Nome} | Filme: {filme.Titulo} | Gênero: {filme.Genero} | Data Locação: {locacao.DataLocacao} | Data Devolução: {locacao.DataDevolucao} | Status: {locacao.Status}");
+            }
+
+        }
+
+        private static string Valida_CPF(string cpf)
+        {
+            string limpa = Regex.Replace(cpf, @"[.\-\s]", "");
+
+            if (limpa.Length == 11)
+            {
+                return limpa;
+            }
+            else
+            {
+                Console.WriteLine("CPF Inválido!");
+                
+
+                return null;
+            }
+        }
+
+        private static string ClassificacaoIndicativa(Clientes cliente, Filmes filme)
+        {
+           
+
+            if (cliente.Idade < 18 && filme.Genero.ToLower() == "terror")
+            {
+                return "O cliente não pode alugar esse filme pois ele é menor de idade e o filme é de terror!";
+            }
+            else
+            {
+                return null;
+            }
+            
+        }
+
+
     }
+
 
 }
 
-// validar cpf
-// idade 18 n pode alugar filme de terror ou p
+// validar cpf CHECK
+// validar CPF na receita federal 
+
+
 // validar se o cliente tem locação em aberto
+// listar clientes com locação em aberto fora do prazo de 2 semanas (14 dias)
+
 
 
 
